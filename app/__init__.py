@@ -8,7 +8,6 @@ load_dotenv()
 
 def create_app():
     app = Flask(__name__)
-    with app.app_context():
     
     app.config.from_mapping(
         SECRET_KEY=os.getenv('SECRET_APP', 'une-cle-secrete-par-defaut'),
