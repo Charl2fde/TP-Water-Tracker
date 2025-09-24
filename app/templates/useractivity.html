@@ -1,0 +1,21 @@
+<!doctype html>
+<title>Water Tracker</title>
+<h1>User Activity</h1>
+<h2>{{ userid }}</h2>
+<h3>Past activities</h3>
+{% for activity in activities %}
+<div>
+    {{ activity[1] }}
+    {{ activity[2] }}
+    {{ activity[3] }}
+    {{ activity[4] }}
+</div>
+{% endfor %}
+<h3>Predicition</h3>
+<div>
+{% for prediction in predictions %}
+<div>
+    {{ prediction }}
+</div>
+{% endfor %}
+</div>

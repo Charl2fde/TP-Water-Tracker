@@ -1,0 +1,1 @@
+docker run --pull always --name db -d --rm -p 5432:5432 -e POSTGRES_DB=water -e POSTGRES_USER=water -e POSTGRES_PASSWORD=water postgres:latest

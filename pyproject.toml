@@ -1,0 +1,18 @@
+[project]
+name = "watertracker"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "coverage>=7.10.7",
+    "dotenv>=0.9.9",
+    "flask>=3.1.2",
+    "flask-wtf>=1.2.2",
+    "numpy>=2.3.3",
+    "psycopg2-binary>=2.9.10",
+    "pytest>=8.4.2",
+    "ruff>=0.13.1",
+]
+[tool.pytest.ini_options]
+pythonpath = ["."]
