@@ -85,7 +85,7 @@ jobs:
           POSTGRES_PASSWORD: water
           POSTGRES_DB: water
         ports:
-          - 5423:5432 # J'ai changé le port pour éviter les conflits, mais 5432 est ok aussi
+          - 5432:5432
         options: >-
           --health-cmd="pg_isready -U water -d water"
           --health-interval=10s
@@ -93,11 +93,11 @@ jobs:
           --health-retries=10
     env:
       DB_HOST: 127.0.0.1
-      DB_PORT: "5423"
+      DB_PORT: "5432"
       DB_NAME: water
       DB_USER: water
       DB_PASSWORD: water
-      DATABASE_URL: postgresql://water:water@127.0.0.1:5423/water
+      DATABASE_URL: postgresql://water:water@127.0.0.1:5432/water
       POSTGRES_USER: water
       POSTGRES_PASSWORD: water
       POSTGRES_DB: water
@@ -119,7 +119,7 @@ jobs:
         run: |
           pytest -q --disable-warnings
 
-  # --- JOB POUR LES TESTS UI - VERSION CORRIGÉE ET UNIQUE ---
+  # --- JOB POUR LES TESTS UI AVEC ÉTAPES DE DÉBOGAGE ---
   ui-tests:
     name: UI tests with Selenium (main only)
     runs-on: ubuntu-latest
@@ -137,12 +137,26 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-pip-
       
-      # === LA CORRECTION EST ICI ===
-      - name: Install dependencies
+      # --- ÉTAPE D'INSTALLATION MODIFIÉE POUR LE DÉBOGAGE ---
+      - name: Install dependencies and Debug
         run: |
+          echo "--- Début de l'installation ---"
+          python -m pip install --upgrade pip
+          
+          echo "Installation de pytest et selenium..."
           pip install pytest selenium
-          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-      
+          
+          if [ -f requirements.txt ]; then
+            echo "Installation de requirements.txt..."
+            pip install -r requirements.txt
+          fi
+          
+          echo "--- VÉRIFICATION DES PAQUETS INSTALLÉS ---"
+          # Cette commande va lister TOUT ce qui est installé.
+          # Nous pourrons vérifier si selenium est bien dans la liste.
+          pip freeze
+          echo "--- Fin de la vérification ---"
+
       - name: Setup Chrome
         uses: browser-actions/setup-chrome@v1
       
@@ -152,7 +166,7 @@ jobs:
   deploy:
     name: Deploy (main only)
     runs-on: ubuntu-latest
-    needs: [ui-tests] # Dépend bien de la version corrigée de ui-tests
+    needs: [ui-tests]
     if: ${{ github.ref == 'refs/heads/main' && github.event_name == 'push' }}
     permissions:
       contents: write
