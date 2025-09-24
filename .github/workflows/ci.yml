@@ -19,18 +19,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-
       - uses: actions/cache@v4
         with:
           path: ~/.cache/pip
           key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements*.txt', '**/pyproject.toml', '**/setup.cfg') }}
           restore-keys: |
             ${{ runner.os }}-pip-
-
       - name: Install dependencies
         run: |
           if [ -f requirements.txt ]; then
@@ -41,11 +38,10 @@ jobs:
             pip install pytest
           fi
 
-  ui-tests:
-    name: UI tests with Selenium (main only)
+  unit-tests:
+    name: Unit tests (fast)
     runs-on: ubuntu-latest
-    needs: unit-tests
-    if: ${{ github.ref == 'refs/heads/main' && github.event_name == 'push' }}
+    needs: build
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -57,16 +53,24 @@ jobs:
           key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements*.txt', '**/pyproject.toml', '**/setup.cfg') }}
           restore-keys: |
             ${{ runner.os }}-pip-
-      - name: Install dependencies
+      - name: Install test deps
         run: |
-          # Install testing-specific dependencies first
-          pip install selenium pytest
-          # Then install application dependencies if they exist
-          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-      - name: Setup Chrome
-        uses: browser-actions/setup-chrome@v1
-      - name: Run UI tests
-        run: pytest tests/test_ui.py
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; else pip install pytest; fi
+      - name: Run unit tests (tolerate zero tests)
+        shell: bash
+        run: |
+          set +e
+          pytest \
+            --ignore=tests/test_integration.py \
+            --ignore-glob='tests/test_integration_*.py' \
+            -m "unit or (not integration and not ui)" \
+            --maxfail=1 --disable-warnings
+          code=$?
+          if [ "$code" -eq 5 ]; then
+            echo "✅ Aucun test unitaire collecté (OK pour l’instant)."
+            exit 0
+          fi
+          exit "$code"
 
   integration-tests:
     name: All tests on PR (with Postgres)
@@ -81,7 +85,7 @@ jobs:
           POSTGRES_PASSWORD: water
           POSTGRES_DB: water
         ports:
-          - 5432:5432
+          - 5423:5432 # J'ai changé le port pour éviter les conflits, mais 5432 est ok aussi
         options: >-
           --health-cmd="pg_isready -U water -d water"
           --health-interval=10s
@@ -89,11 +93,11 @@ jobs:
           --health-retries=10
     env:
       DB_HOST: 127.0.0.1
-      DB_PORT: "5432"
+      DB_PORT: "5423"
       DB_NAME: water
       DB_USER: water
       DB_PASSWORD: water
-      DATABASE_URL: postgresql://water:water@127.0.0.1:5432/water
+      DATABASE_URL: postgresql://water:water@127.0.0.1:5423/water
       POSTGRES_USER: water
       POSTGRES_PASSWORD: water
       POSTGRES_DB: water
@@ -114,8 +118,8 @@ jobs:
       - name: Run full test suite (PR)
         run: |
           pytest -q --disable-warnings
-          
-  # --- NOUVEAU JOB POUR LES TESTS UI ---
+
+  # --- JOB POUR LES TESTS UI - VERSION CORRIGÉE ET UNIQUE ---
   ui-tests:
     name: UI tests with Selenium (main only)
     runs-on: ubuntu-latest
@@ -132,19 +136,23 @@ jobs:
           key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements*.txt', '**/pyproject.toml', '**/setup.cfg') }}
           restore-keys: |
             ${{ runner.os }}-pip-
+      
+      # === LA CORRECTION EST ICI ===
       - name: Install dependencies
         run: |
-          if [ -f requirements.txt ]; then pip install -r requirements.txt; else pip install pytest; fi
+          pip install pytest selenium
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+      
       - name: Setup Chrome
         uses: browser-actions/setup-chrome@v1
+      
       - name: Run UI tests
         run: pytest tests/test_ui.py
 
   deploy:
     name: Deploy (main only)
     runs-on: ubuntu-latest
-    # On met à jour la dépendance : le déploiement se fait APRES les tests UI
-    needs: [ui-tests]
+    needs: [ui-tests] # Dépend bien de la version corrigée de ui-tests
     if: ${{ github.ref == 'refs/heads/main' && github.event_name == 'push' }}
     permissions:
       contents: write
