@@ -56,18 +56,21 @@ jobs:
       - name: Install test deps
         run: |
           if [ -f requirements.txt ]; then pip install -r requirements.txt; else pip install pytest; fi
+      
+      # --- CORRECTION ICI : On ignore test_ui.py ---
       - name: Run unit tests (tolerate zero tests)
         shell: bash
         run: |
           set +e
           pytest \
+            --ignore=tests/test_ui.py \
             --ignore=tests/test_integration.py \
             --ignore-glob='tests/test_integration_*.py' \
             -m "unit or (not integration and not ui)" \
             --maxfail=1 --disable-warnings
           code=$?
           if [ "$code" -eq 5 ]; then
-            echo "✅ Aucun test unitaire collecté (OK pour l’instant)."
+            echo "✅ Aucun test unitaire collecté (OK pour l'instant)."
             exit 0
           fi
           exit "$code"
@@ -119,7 +122,6 @@ jobs:
         run: |
           pytest -q --disable-warnings
 
-  # --- JOB POUR LES TESTS UI AVEC ÉTAPES DE DÉBOGAGE ---
   ui-tests:
     name: UI tests with Selenium (main only)
     runs-on: ubuntu-latest
@@ -137,25 +139,14 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-pip-
       
-      # --- ÉTAPE D'INSTALLATION MODIFIÉE POUR LE DÉBOGAGE ---
-      - name: Install dependencies and Debug
+      # Installation de selenium pour ce job
+      - name: Install dependencies
         run: |
-          echo "--- Début de l'installation ---"
           python -m pip install --upgrade pip
-          
-          echo "Installation de pytest et selenium..."
           pip install pytest selenium
-          
           if [ -f requirements.txt ]; then
-            echo "Installation de requirements.txt..."
             pip install -r requirements.txt
           fi
-          
-          echo "--- VÉRIFICATION DES PAQUETS INSTALLÉS ---"
-          # Cette commande va lister TOUT ce qui est installé.
-          # Nous pourrons vérifier si selenium est bien dans la liste.
-          pip freeze
-          echo "--- Fin de la vérification ---"
 
       - name: Setup Chrome
         uses: browser-actions/setup-chrome@v1
