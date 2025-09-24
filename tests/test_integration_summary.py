@@ -26,3 +26,5 @@ def test_summary_displays_resume():
                     ), f"Le contenu de {path} ne semble pas contenir de résumé."
                     return
             pytest.fail(f"Aucune des routes {candidates} n'a renvoyé 200")
+
+            
