@@ -126,8 +126,6 @@ jobs:
           fi
           pytest $files -q --disable-warnings
 
-          
-  # --- NOUVEAU JOB POUR LES TESTS UI ---
   ui-tests:
     name: UI tests with Selenium (main only)
     runs-on: ubuntu-latest
@@ -149,11 +147,16 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install pytest selenium
+          pip install pytest selenium flask
           if [ -f requirements.txt ]; then
             pip install -r requirements.txt
           fi
 
+      - name: Start Flask app in background
+        run: |
+          python app.py & 
+          sleep 5
+          
       - name: Setup Chrome
         uses: browser-actions/setup-chrome@v1
       
