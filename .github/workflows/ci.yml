@@ -19,18 +19,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-
       - uses: actions/cache@v4
         with:
           path: ~/.cache/pip
           key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements*.txt', '**/pyproject.toml', '**/setup.cfg') }}
           restore-keys: |
             ${{ runner.os }}-pip-
-
       - name: Install dependencies
         run: |
           if [ -f requirements.txt ]; then
@@ -59,18 +56,21 @@ jobs:
       - name: Install test deps
         run: |
           if [ -f requirements.txt ]; then pip install -r requirements.txt; else pip install pytest; fi
+      
+      # --- CORRECTION ICI : On ignore test_ui.py ---
       - name: Run unit tests (tolerate zero tests)
         shell: bash
         run: |
           set +e
           pytest \
+            --ignore=tests/test_ui.py \
             --ignore=tests/test_integration.py \
             --ignore-glob='tests/test_integration_*.py' \
             -m "unit or (not integration and not ui)" \
             --maxfail=1 --disable-warnings
           code=$?
           if [ "$code" -eq 5 ]; then
-            echo "✅ Aucun test unitaire collecté (OK pour l’instant)."
+            echo "✅ Aucun test unitaire collecté (OK pour l'instant)."
             exit 0
           fi
           exit "$code"
@@ -121,8 +121,7 @@ jobs:
       - name: Run full test suite (PR)
         run: |
           pytest -q --disable-warnings
-          
-  # --- NOUVEAU JOB POUR LES TESTS UI ---
+
   ui-tests:
     name: UI tests with Selenium (main only)
     runs-on: ubuntu-latest
@@ -139,18 +138,25 @@ jobs:
           key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements*.txt', '**/pyproject.toml', '**/setup.cfg') }}
           restore-keys: |
             ${{ runner.os }}-pip-
+      
+      # Installation de selenium pour ce job
       - name: Install dependencies
         run: |
-          if [ -f requirements.txt ]; then pip install -r requirements.txt; else pip install pytest; fi
+          python -m pip install --upgrade pip
+          pip install pytest selenium
+          if [ -f requirements.txt ]; then
+            pip install -r requirements.txt
+          fi
+
       - name: Setup Chrome
         uses: browser-actions/setup-chrome@v1
+      
       - name: Run UI tests
         run: pytest tests/test_ui.py
 
   deploy:
     name: Deploy (main only)
     runs-on: ubuntu-latest
-    # On met à jour la dépendance : le déploiement se fait APRES les tests UI
     needs: [ui-tests]
     if: ${{ github.ref == 'refs/heads/main' && github.event_name == 'push' }}
     permissions:
