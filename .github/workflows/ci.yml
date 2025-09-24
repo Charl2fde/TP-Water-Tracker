@@ -41,10 +41,11 @@ jobs:
             pip install pytest
           fi
 
-  unit-tests:
-    name: Unit tests (fast)
+  ui-tests:
+    name: UI tests with Selenium (main only)
     runs-on: ubuntu-latest
-    needs: build
+    needs: unit-tests
+    if: ${{ github.ref == 'refs/heads/main' && github.event_name == 'push' }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -56,24 +57,16 @@ jobs:
           key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements*.txt', '**/pyproject.toml', '**/setup.cfg') }}
           restore-keys: |
             ${{ runner.os }}-pip-
-      - name: Install test deps
+      - name: Install dependencies
         run: |
-          if [ -f requirements.txt ]; then pip install -r requirements.txt; else pip install pytest; fi
-      - name: Run unit tests (tolerate zero tests)
-        shell: bash
-        run: |
-          set +e
-          pytest \
-            --ignore=tests/test_integration.py \
-            --ignore-glob='tests/test_integration_*.py' \
-            -m "unit or (not integration and not ui)" \
-            --maxfail=1 --disable-warnings
-          code=$?
-          if [ "$code" -eq 5 ]; then
-            echo "✅ Aucun test unitaire collecté (OK pour l’instant)."
-            exit 0
-          fi
-          exit "$code"
+          # Install testing-specific dependencies first
+          pip install selenium pytest
+          # Then install application dependencies if they exist
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+      - name: Setup Chrome
+        uses: browser-actions/setup-chrome@v1
+      - name: Run UI tests
+        run: pytest tests/test_ui.py
 
   integration-tests:
     name: All tests on PR (with Postgres)
