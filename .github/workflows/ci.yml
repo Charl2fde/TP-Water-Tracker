@@ -76,7 +76,7 @@ jobs:
           exit "$code"
 
   integration-tests:
-    name: All tests on PR (with Postgres)
+    name: Integration tests (PR only)
     runs-on: ubuntu-latest
     needs: build
     if: ${{ github.event_name == 'pull_request' }}
@@ -101,9 +101,6 @@ jobs:
       DB_USER: water
       DB_PASSWORD: water
       DATABASE_URL: postgresql://water:water@127.0.0.1:5432/water
-      POSTGRES_USER: water
-      POSTGRES_PASSWORD: water
-      POSTGRES_DB: water
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -118,9 +115,16 @@ jobs:
       - name: Install test deps
         run: |
           if [ -f requirements.txt ]; then pip install -r requirements.txt; else pip install pytest; fi
-      - name: Run full test suite (PR)
+      - name: Run integration tests only (explicit files)
+        shell: bash
         run: |
-          pytest -q --disable-warnings
+          set -e
+          files=$(ls tests/test_integration*.py 2>/dev/null || true)
+          if [ -z "$files" ]; then
+            echo "❌ Aucun fichier d’intégration trouvé (attendu: tests/test_integration*.py)."
+            exit 1
+          fi
+          pytest $files -q --disable-warnings
 
   ui-tests:
     name: UI tests with Selenium (main only)
@@ -152,7 +156,7 @@ jobs:
         run: |
           python app.py & 
           sleep 5
-
+          
       - name: Setup Chrome
         uses: browser-actions/setup-chrome@v1
       
